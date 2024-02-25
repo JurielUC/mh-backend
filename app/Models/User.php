@@ -18,10 +18,36 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'name',
+        'status',
+
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
+        'gender',
+
         'email',
         'password',
+
+        'phone',
+        'house_no',
+        'street',
+        'house_type',
+        
+        'role',
+        'image',
+
+        'deprecated',
+
+        'email_verified_at'
     ];
+
+    public function generate_code()
+	{
+		$code = "MH-".mt_rand(100, 999).time();
+
+		return $code;
+	}
 
     /**
      * The attributes that should be hidden for serialization.
