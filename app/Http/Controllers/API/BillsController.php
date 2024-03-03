@@ -9,12 +9,12 @@ use Validator;
 use DB;
 
 use App\Models\User;
-use App\Models\HouseType;
+use App\Models\Bill;
 
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UsersResource;
+use App\Http\Resources\BillResource;
+use App\Http\Resources\BillsResource;
 
-class UsersController extends Controller
+class BillsController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -33,13 +33,13 @@ class UsersController extends Controller
             ];
         }
 
-        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
+        if ($request->input('user_id') AND $request->input('user_id') != null AND $request->input('user_id')!='') {
             $where[] = [
-                'role', '=', $request->input('role')
+                'user_id', '=', $request->input('user_id')
             ];
         }
 
-        $order = 'desc';
+        $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,25 +51,9 @@ class UsersController extends Controller
 			$page = $request->input('page');
 		}
 
-        $users = User::where($where);
+        $bills = Bill::where($where)->orderBy('id', $order)->paginate(50);
 
-		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
-
-			$search = $request->input('search');
-	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
-		}
-
-        $users = $users->orderBy('id', $order)->paginate(10);
-
-        return new UsersResource($users);
+        return new BillsResource($bills);
     }
 
     /**
@@ -91,10 +75,8 @@ class UsersController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'password' => 'required',
-            'email' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
+            'user_id' => 'required',
+            'admin_id' => 'required'
         ];
 
         $_input = $request->input();
@@ -111,21 +93,34 @@ class UsersController extends Controller
         } else {
             DB::beginTransaction();
 
-            $user = new User($_input);
-            $user->status = "Active";
-            $user->role = 'Admin';
+            $user_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['user_id']]
+            ];
+            $user = User::where($user_where)->first();
 
-            $user->save();
+            $admin_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['admin_id']]
+            ];
+            $admin = User::where($admin_where)->first();
+
+            $bill = new Bill($_input);
+            $bill->code = $bill->generate_code();
+            $bill->user()->associate($user);
+            $bill->admin()->associate($admin);
+
+            $bill->save();
 
             DB::commit();
 
-            $user_resource = new UserResource($user);
+            $bill_resource = new BillResource($bill);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $bill->id,
+                    'bill' => $bill_resource
                 ]
             ];
         }
@@ -145,13 +140,13 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $bill = Bill::where($where)->first();
 
-        if ($user) {
-            return new UserResource($user);
+        if ($bill) {
+            return new BillResource($bill);
         } else {
             $errors = [
-                'User does not exist!'
+                'Bill does not exist!'
             ];
 
             $data = [
@@ -203,42 +198,28 @@ class UsersController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $user = User::where($where)->first();
+            $bill = Bill::where($where)->first();
 
-            if ($user) {
-                $user->fill($_input);
-                $user->status = 'Active';
-
-                if (isset($_input['house_type_id'])) {
-                    $house_type_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['house_type_id']]
-                    ];
-                    $house_type = HouseType::where($house_type_where)->first();
-
-                    $user->house_type = $house_type->name;
-
-                    $user->house_type()->associate($house_type);
-                }
-
-                $user->save();
+            if ($bill) {
+                $bill->fill($_input);
+                $bill->save();
 
                 DB::commit();
 
-                $user_resource = new UserResource($user);
+                $bill_resource = new BillResource($bill);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $user->id,
-                        'user' => $user_resource
+                        'id' => $bill->id,
+                        'bill' => $bill_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'User does not exists'
+                    'Bill does not exists'
                 ];
 
                 $data = [
@@ -263,24 +244,24 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $bill = Bill::where($where)->first();
 
-        if ($user) {
-            $user->deprecated = 1;
-            $user->save();
+        if ($bill) {
+            $bill->deprecated = 1;
+            $bill->save();
 
-            $user_resource = new UserResource($user);
+            $bill_resource = new BillResource($bill);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $bill->id,
+                    'bill' => $bill_resource
                 ]
 			];
         } else {
             $errors = [
-                'User does not exist'
+                'Bill does not exist'
             ];
 
             $data = [
@@ -291,51 +272,4 @@ class UsersController extends Controller
 
         return response()->json($data);
     }
-
-    public function file_upload(Request $request)
-	{
-		$rules = [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg',
-        ];
-
-        $_input = $request->all();
-
-        $validator = Validator::make($_input, $rules);
-
-        if ($validator->fails()) {
-			$errors = $validator->errors()->toArray();
-
-			$data = [
-				'status' => 'Fail',
-				'errors' => $errors
-			];
-        } else {
-			$file = $request->file('image');
-			$directory = 'user';
-			$extension = strtolower($file->getClientOriginalExtension());
-			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
-
-			$response = $file->storeAs($directory, $filename, 'public');
-            
-			if ($response) {
-				$data = [
-					'status' => 'Success',
-					'data' => [
-						'image' => $filename,
-					]
-				];
-			} else {
-				$errors = [
-					'Error uploading the image!'
-				];
-
-				$data = [
-					'status' => 'Fail',
-					'errors' => $errors
-				];				
-			}
-        }
-		
-		return response()->json($data);
-	}
 }

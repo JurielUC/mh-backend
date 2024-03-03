@@ -8,13 +8,12 @@ use Illuminate\Http\Request;
 use Validator;
 use DB;
 
-use App\Models\User;
 use App\Models\HouseType;
 
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UsersResource;
+use App\Http\Resources\HouseTypeResource;
+use App\Http\Resources\HouseTypesResource;
 
-class UsersController extends Controller
+class HouseTypesController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -33,13 +32,7 @@ class UsersController extends Controller
             ];
         }
 
-        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
-            $where[] = [
-                'role', '=', $request->input('role')
-            ];
-        }
-
-        $order = 'desc';
+        $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,25 +44,9 @@ class UsersController extends Controller
 			$page = $request->input('page');
 		}
 
-        $users = User::where($where);
+        $house_type = HouseType::where($where)->orderBy('id', $order)->paginate(50);
 
-		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
-
-			$search = $request->input('search');
-	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
-		}
-
-        $users = $users->orderBy('id', $order)->paginate(10);
-
-        return new UsersResource($users);
+        return new HouseTypesResource($house_type);
     }
 
     /**
@@ -90,12 +67,7 @@ class UsersController extends Controller
      */
     public function store(Request $request)
     {
-        $rules = [
-            'password' => 'required',
-            'email' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
-        ];
+        $rules = [];
 
         $_input = $request->input();
 
@@ -111,21 +83,20 @@ class UsersController extends Controller
         } else {
             DB::beginTransaction();
 
-            $user = new User($_input);
-            $user->status = "Active";
-            $user->role = 'Admin';
+            $house_type = new HouseType($_input);
+            $house_type->code = $house_type->generate_code();
 
-            $user->save();
+            $house_type->save();
 
             DB::commit();
 
-            $user_resource = new UserResource($user);
+            $house_type_resource = new HouseTypeResource($house_type);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $house_type->id,
+                    'house_type' => $house_type_resource
                 ]
             ];
         }
@@ -145,13 +116,13 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $house_type = HouseType::where($where)->first();
 
-        if ($user) {
-            return new UserResource($user);
+        if ($house_type) {
+            return new HouseTypeResource($house_type);
         } else {
             $errors = [
-                'User does not exist!'
+                'House Type does not exist!'
             ];
 
             $data = [
@@ -203,42 +174,28 @@ class UsersController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $user = User::where($where)->first();
+            $house_type = HouseType::where($where)->first();
 
-            if ($user) {
-                $user->fill($_input);
-                $user->status = 'Active';
-
-                if (isset($_input['house_type_id'])) {
-                    $house_type_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['house_type_id']]
-                    ];
-                    $house_type = HouseType::where($house_type_where)->first();
-
-                    $user->house_type = $house_type->name;
-
-                    $user->house_type()->associate($house_type);
-                }
-
-                $user->save();
+            if ($house_type) {
+                $house_type->fill($_input);
+                $house_type->save();
 
                 DB::commit();
 
-                $user_resource = new UserResource($user);
+                $house_type_resource = new HouseTypeResource($house_type);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $user->id,
-                        'user' => $user_resource
+                        'id' => $house_type->id,
+                        'house_type' => $house_type_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'User does not exists'
+                    'House type does not exists'
                 ];
 
                 $data = [
@@ -263,24 +220,24 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $house_type = HouseType::where($where)->first();
 
-        if ($user) {
-            $user->deprecated = 1;
-            $user->save();
+        if ($house_type) {
+            $house_type->deprecated = 1;
+            $house_type->save();
 
-            $user_resource = new UserResource($user);
+            $house_type_resource = new HouseTypeResource($house_type);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $house_type->id,
+                    'house_type' => $house_type_resource
                 ]
 			];
         } else {
             $errors = [
-                'User does not exist'
+                'House type does not exist'
             ];
 
             $data = [
@@ -291,51 +248,4 @@ class UsersController extends Controller
 
         return response()->json($data);
     }
-
-    public function file_upload(Request $request)
-	{
-		$rules = [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg',
-        ];
-
-        $_input = $request->all();
-
-        $validator = Validator::make($_input, $rules);
-
-        if ($validator->fails()) {
-			$errors = $validator->errors()->toArray();
-
-			$data = [
-				'status' => 'Fail',
-				'errors' => $errors
-			];
-        } else {
-			$file = $request->file('image');
-			$directory = 'user';
-			$extension = strtolower($file->getClientOriginalExtension());
-			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
-
-			$response = $file->storeAs($directory, $filename, 'public');
-            
-			if ($response) {
-				$data = [
-					'status' => 'Success',
-					'data' => [
-						'image' => $filename,
-					]
-				];
-			} else {
-				$errors = [
-					'Error uploading the image!'
-				];
-
-				$data = [
-					'status' => 'Fail',
-					'errors' => $errors
-				];				
-			}
-        }
-		
-		return response()->json($data);
-	}
 }

@@ -9,12 +9,12 @@ use Validator;
 use DB;
 
 use App\Models\User;
-use App\Models\HouseType;
+use App\Models\LostFound;
 
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UsersResource;
+use App\Http\Resources\LostFoundResource;
+use App\Http\Resources\LostsFoundsResource;
 
-class UsersController extends Controller
+class LostsFoundsController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -33,13 +33,7 @@ class UsersController extends Controller
             ];
         }
 
-        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
-            $where[] = [
-                'role', '=', $request->input('role')
-            ];
-        }
-
-        $order = 'desc';
+        $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,25 +45,21 @@ class UsersController extends Controller
 			$page = $request->input('page');
 		}
 
-        $users = User::where($where);
+        $lost_founds = LostFound::where($where);
 
 		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
 
 			$search = $request->input('search');
 	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
+			$lost_founds = $lost_founds->where('item_name', 'LIKE', '%'.$search.'%')
+			->orWhere('type', 'LIKE', '%'.$search.'%')
+            ->orWhere('location', 'LIKE', '%'.$search.'%')
+            ->orWhere('finder_name', 'LIKE', '%'.$search.'%');
 		}
 
-        $users = $users->orderBy('id', $order)->paginate(10);
+        $lost_founds = $lost_founds->orderBy('id', $order)->paginate(10);
 
-        return new UsersResource($users);
+        return new LostsFoundsResource($lost_founds);
     }
 
     /**
@@ -91,10 +81,7 @@ class UsersController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'password' => 'required',
-            'email' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
+            'user_id' => 'required'
         ];
 
         $_input = $request->input();
@@ -111,21 +98,32 @@ class UsersController extends Controller
         } else {
             DB::beginTransaction();
 
-            $user = new User($_input);
-            $user->status = "Active";
-            $user->role = 'Admin';
+            $user_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['user_id']]
+            ];
+            $user = User::where($user_where)->first();
 
-            $user->save();
+            $lost_found = new LostFound($_input);
+            $lost_found->code = $lost_found->generate_code();
+
+            if (isset($_input['image_urls'])) {
+                $lost_found->image_urls = json_encode($_input['image_urls']);
+            }
+
+            $lost_found->user()->associate($user);
+
+            $lost_found->save();
 
             DB::commit();
 
-            $user_resource = new UserResource($user);
+            $lost_found_resource = new LostFoundResource($lost_found);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $lost_found->id,
+                    'lost_found' => $lost_found_resource
                 ]
             ];
         }
@@ -145,13 +143,13 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $lost_found = LostFound::where($where)->first();
 
-        if ($user) {
-            return new UserResource($user);
+        if ($lost_found) {
+            return new LostFoundResource($lost_found);
         } else {
             $errors = [
-                'User does not exist!'
+                'Lost and found item does not exist!'
             ];
 
             $data = [
@@ -203,42 +201,33 @@ class UsersController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $user = User::where($where)->first();
+            $lost_found = LostFound::where($where)->first();
 
-            if ($user) {
-                $user->fill($_input);
-                $user->status = 'Active';
+            if ($lost_found) {
+                $lost_found->fill($_input);
 
-                if (isset($_input['house_type_id'])) {
-                    $house_type_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['house_type_id']]
-                    ];
-                    $house_type = HouseType::where($house_type_where)->first();
-
-                    $user->house_type = $house_type->name;
-
-                    $user->house_type()->associate($house_type);
+                if (isset($_input['image_urls'])) {
+                    $lost_found->image_urls = json_encode($_input['image_urls']);
                 }
 
-                $user->save();
+                $lost_found->save();
 
                 DB::commit();
 
-                $user_resource = new UserResource($user);
+                $lost_found_resource = new LostFoundResource($lost_found);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $user->id,
-                        'user' => $user_resource
+                        'id' => $lost_found->id,
+                        'lost_found' => $lost_found_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'User does not exists'
+                    'Lost and found item does not exist!'
                 ];
 
                 $data = [
@@ -263,24 +252,24 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $lost_found = LostFound::where($where)->first();
 
-        if ($user) {
-            $user->deprecated = 1;
-            $user->save();
+        if ($lost_found) {
+            $lost_found->deprecated = 1;
+            $lost_found->save();
 
-            $user_resource = new UserResource($user);
+            $lost_found_resource = new TaskResource($lost_found);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $lost_found->id,
+                    'lost_found' => $lost_found_resource
                 ]
 			];
         } else {
             $errors = [
-                'User does not exist'
+                'Lost and found item does not exist!'
             ];
 
             $data = [
@@ -310,8 +299,8 @@ class UsersController extends Controller
 				'errors' => $errors
 			];
         } else {
-			$file = $request->file('image');
-			$directory = 'user';
+			$file = $request->file('image_url');
+			$directory = 'lost';
 			$extension = strtolower($file->getClientOriginalExtension());
 			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
 
@@ -321,7 +310,7 @@ class UsersController extends Controller
 				$data = [
 					'status' => 'Success',
 					'data' => [
-						'image' => $filename,
+						'image_url' => $filename,
 					]
 				];
 			} else {

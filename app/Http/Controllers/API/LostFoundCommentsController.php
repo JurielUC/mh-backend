@@ -9,12 +9,13 @@ use Validator;
 use DB;
 
 use App\Models\User;
-use App\Models\HouseType;
+use App\Models\LostFoundComment;
+use App\Models\LostFound;
 
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UsersResource;
+use App\Http\Resources\LostFoundCommentResource;
+use App\Http\Resources\LostFoundCommentsResource;
 
-class UsersController extends Controller
+class LostFoundCommentsController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -33,13 +34,7 @@ class UsersController extends Controller
             ];
         }
 
-        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
-            $where[] = [
-                'role', '=', $request->input('role')
-            ];
-        }
-
-        $order = 'desc';
+        $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,25 +46,9 @@ class UsersController extends Controller
 			$page = $request->input('page');
 		}
 
-        $users = User::where($where);
+        $lost_founds = LostFoundComment::where($where)->orderBy('id', $order)->paginate(50);
 
-		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
-
-			$search = $request->input('search');
-	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
-		}
-
-        $users = $users->orderBy('id', $order)->paginate(10);
-
-        return new UsersResource($users);
+        return new LostFoundCommentsResource($lost_founds);
     }
 
     /**
@@ -91,10 +70,7 @@ class UsersController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'password' => 'required',
-            'email' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
+            'lost_found_id' => 'required'
         ];
 
         $_input = $request->input();
@@ -111,21 +87,35 @@ class UsersController extends Controller
         } else {
             DB::beginTransaction();
 
-            $user = new User($_input);
-            $user->status = "Active";
-            $user->role = 'Admin';
+            $user_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $request->query('user_id')]
+            ];
+            $user = User::where($user_where)->first();
 
-            $user->save();
+            $lost_found_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['lost_found_id']]
+            ];
+            $lost_found = LostFound::where($lost_found_where)->first();
+
+            $lost_found_comment = new LostFoundComment($_input);
+            $lost_found_comment->code = $lost_found_comment->generate_code();
+
+            $lost_found_comment->user()->associate($user);
+            $lost_found_comment->lost_found()->associate($lost_found);
+
+            $lost_found_comment->save();
 
             DB::commit();
 
-            $user_resource = new UserResource($user);
+            $lost_found_comment_resource = new LostFoundCommentResource($lost_found_comment);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $lost_found_comment->id,
+                    'lost_found_comment' => $lost_found_comment_resource
                 ]
             ];
         }
@@ -145,13 +135,13 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $lost_found_comment = LostFoundComment::where($where)->first();
 
-        if ($user) {
-            return new UserResource($user);
+        if ($lost_found_comment) {
+            return new LostFoundCommentResource($lost_found_comment);
         } else {
             $errors = [
-                'User does not exist!'
+                'Lost and found comment does not exist!'
             ];
 
             $data = [
@@ -203,42 +193,29 @@ class UsersController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $user = User::where($where)->first();
+            $lost_found_comment = LostFoundComment::where($where)->first();
 
-            if ($user) {
-                $user->fill($_input);
-                $user->status = 'Active';
+            if ($lost_found_comment) {
+                $lost_found_comment->fill($_input);
 
-                if (isset($_input['house_type_id'])) {
-                    $house_type_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['house_type_id']]
-                    ];
-                    $house_type = HouseType::where($house_type_where)->first();
-
-                    $user->house_type = $house_type->name;
-
-                    $user->house_type()->associate($house_type);
-                }
-
-                $user->save();
+                $lost_found_comment->save();
 
                 DB::commit();
 
-                $user_resource = new UserResource($user);
+                $lost_found_comment_resource = new LostFoundCommentResource($lost_found_comment);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $user->id,
-                        'user' => $user_resource
+                        'id' => $lost_found_comment->id,
+                        'lost_found_comment' => $lost_found_comment_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'User does not exists'
+                    'Lost and found comment does not exist!'
                 ];
 
                 $data = [
@@ -263,24 +240,24 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $lost_found_comment = LostFound::where($where)->first();
 
-        if ($user) {
-            $user->deprecated = 1;
-            $user->save();
+        if ($lost_found_comment) {
+            $lost_found_comment->deprecated = 1;
+            $lost_found_comment->save();
 
-            $user_resource = new UserResource($user);
+            $lost_found_comment_resource = new LostFoundComment($lost_found_comment);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $lost_found_comment->id,
+                    'lost_found_comment' => $lost_found_comment_resource
                 ]
 			];
         } else {
             $errors = [
-                'User does not exist'
+                'Lost and found comment does not exist!'
             ];
 
             $data = [
@@ -291,51 +268,4 @@ class UsersController extends Controller
 
         return response()->json($data);
     }
-
-    public function file_upload(Request $request)
-	{
-		$rules = [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg',
-        ];
-
-        $_input = $request->all();
-
-        $validator = Validator::make($_input, $rules);
-
-        if ($validator->fails()) {
-			$errors = $validator->errors()->toArray();
-
-			$data = [
-				'status' => 'Fail',
-				'errors' => $errors
-			];
-        } else {
-			$file = $request->file('image');
-			$directory = 'user';
-			$extension = strtolower($file->getClientOriginalExtension());
-			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
-
-			$response = $file->storeAs($directory, $filename, 'public');
-            
-			if ($response) {
-				$data = [
-					'status' => 'Success',
-					'data' => [
-						'image' => $filename,
-					]
-				];
-			} else {
-				$errors = [
-					'Error uploading the image!'
-				];
-
-				$data = [
-					'status' => 'Fail',
-					'errors' => $errors
-				];				
-			}
-        }
-		
-		return response()->json($data);
-	}
 }

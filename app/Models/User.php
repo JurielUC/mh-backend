@@ -67,4 +67,9 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function house_type()
+    {
+        return $this->belongsTo('App\Models\HouseType', 'house_type_id');
+    }
 }

@@ -9,12 +9,12 @@ use Validator;
 use DB;
 
 use App\Models\User;
-use App\Models\HouseType;
+use App\Models\Reservation;
 
-use App\Http\Resources\UserResource;
-use App\Http\Resources\UsersResource;
+use App\Http\Resources\ReservationResource;
+use App\Http\Resources\ReservationsResource;
 
-class UsersController extends Controller
+class ReservationsController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -33,13 +33,7 @@ class UsersController extends Controller
             ];
         }
 
-        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
-            $where[] = [
-                'role', '=', $request->input('role')
-            ];
-        }
-
-        $order = 'desc';
+        $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,25 +45,9 @@ class UsersController extends Controller
 			$page = $request->input('page');
 		}
 
-        $users = User::where($where);
+        $reservations = Reservation::where($where)->orderBy('id', $order)->paginate(50);
 
-		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
-
-			$search = $request->input('search');
-	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
-		}
-
-        $users = $users->orderBy('id', $order)->paginate(10);
-
-        return new UsersResource($users);
+        return new ReservationsResource($reservations);
     }
 
     /**
@@ -91,10 +69,7 @@ class UsersController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'password' => 'required',
-            'email' => 'required',
-            'first_name' => 'required',
-            'last_name' => 'required',
+            'user_id' => 'required'
         ];
 
         $_input = $request->input();
@@ -111,21 +86,36 @@ class UsersController extends Controller
         } else {
             DB::beginTransaction();
 
-            $user = new User($_input);
-            $user->status = "Active";
-            $user->role = 'Admin';
+            $user_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['user_id']]
+            ];
+            $user = User::where($user_where)->first();
 
-            $user->save();
+            $facility_where = [
+                ['deprecated', '=', 0],
+                ['id', '=', $_input['facility_id']]
+            ];
+            $facility = Facility::where($facility_where)->first();
+
+            $reservation = new Reservation($_input);
+            $reservation->code = $reservation->generate_code();
+            $reservation->facility = $facility->name;
+
+            $reservation->user()->associate($user);
+            $reservation->facility()->associate($facility);
+
+            $reservation->save();
 
             DB::commit();
 
-            $user_resource = new UserResource($user);
+            $reservation_resource = new ReservationResource($reservation);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $reservation->id,
+                    'reservation' => $reservation_resource
                 ]
             ];
         }
@@ -145,13 +135,13 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $reservation = Reservation::where($where)->first();
 
-        if ($user) {
-            return new UserResource($user);
+        if ($reservation) {
+            return new ReservationResource($reservation);
         } else {
             $errors = [
-                'User does not exist!'
+                'Reservation does not exist!'
             ];
 
             $data = [
@@ -203,42 +193,40 @@ class UsersController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $user = User::where($where)->first();
+            $reservation = Reservation::where($where)->first();
 
-            if ($user) {
-                $user->fill($_input);
-                $user->status = 'Active';
+            if ($reservation) {
+                $reservation->fill($_input);
 
-                if (isset($_input['house_type_id'])) {
-                    $house_type_where = [
+                if (isset($_input['facility_id'])) {
+                    $facility_where = [
                         ['deprecated', '=', 0],
-                        ['id', '=', $_input['house_type_id']]
+                        ['id', '=', $_input['facility_id']]
                     ];
-                    $house_type = HouseType::where($house_type_where)->first();
+                    $facility = Facility::where($facility_where)->first();
 
-                    $user->house_type = $house_type->name;
-
-                    $user->house_type()->associate($house_type);
+                    $reservation->facility = $facility->name;
+                    $reservation->facility()->associate($facility);
                 }
 
-                $user->save();
+                $reservation->save();
 
                 DB::commit();
 
-                $user_resource = new UserResource($user);
+                $reservation_resource = new ReservationResource($reservation);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $user->id,
-                        'user' => $user_resource
+                        'id' => $reservation->id,
+                        'reservation' => $reservation_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'User does not exists'
+                    'Reservation does not exists'
                 ];
 
                 $data = [
@@ -263,24 +251,24 @@ class UsersController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $user = User::where($where)->first();
+        $reservation = Reservation::where($where)->first();
 
-        if ($user) {
-            $user->deprecated = 1;
-            $user->save();
+        if ($reservation) {
+            $reservation->deprecated = 1;
+            $reservation->save();
 
-            $user_resource = new UserResource($user);
+            $reservation_resource = new ReservationResource($reservation);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $user->id,
-                    'user' => $user_resource
+                    'id' => $reservation->id,
+                    'reservation' => $reservation_resource
                 ]
 			];
         } else {
             $errors = [
-                'User does not exist'
+                'Reservation does not exist'
             ];
 
             $data = [
@@ -291,51 +279,4 @@ class UsersController extends Controller
 
         return response()->json($data);
     }
-
-    public function file_upload(Request $request)
-	{
-		$rules = [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg',
-        ];
-
-        $_input = $request->all();
-
-        $validator = Validator::make($_input, $rules);
-
-        if ($validator->fails()) {
-			$errors = $validator->errors()->toArray();
-
-			$data = [
-				'status' => 'Fail',
-				'errors' => $errors
-			];
-        } else {
-			$file = $request->file('image');
-			$directory = 'user';
-			$extension = strtolower($file->getClientOriginalExtension());
-			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
-
-			$response = $file->storeAs($directory, $filename, 'public');
-            
-			if ($response) {
-				$data = [
-					'status' => 'Success',
-					'data' => [
-						'image' => $filename,
-					]
-				];
-			} else {
-				$errors = [
-					'Error uploading the image!'
-				];
-
-				$data = [
-					'status' => 'Fail',
-					'errors' => $errors
-				];				
-			}
-        }
-		
-		return response()->json($data);
-	}
 }

@@ -23,7 +23,7 @@ class UserResource extends JsonResource
             'middle_name' => (string)$this->middle_name,
             'last_name' => (string)$this->last_name,
             'suffix' => (string)$this->suffix,
-            'gender' => (string)$this->suffix,
+            'gender' => (string)$this->gender,
 
             'email' => (string)$this->email,
             'phone' => (string)$this->phone,
@@ -31,6 +31,7 @@ class UserResource extends JsonResource
             'house_no' => (string)$this->house_no,
             'street' => (string)$this->street,
             'house_type' => (string)$this->house_type,
+            'house_type_id' => (int)$this->house_type_id,
 
             'role' => (string)$this->role,
             'image' => (string)$this->image,
