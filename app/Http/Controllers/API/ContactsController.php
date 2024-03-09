@@ -50,7 +50,19 @@ class ContactsController extends Controller
 			$page = $request->input('page');
 		}
 
-        $contacts = Contact::where($where)->orderBy('id', $order)->paginate(50);
+        $contacts = Contact::where($where);
+
+		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
+
+			$search = $request->input('search');
+	
+			$contacts = $contacts->where('name', 'LIKE', '%'.$search.'%')
+            ->orWhere('facebook', 'LIKE', '%'.$search.'%')
+			->orWhere('email', 'LIKE', '%'.$search.'%') 
+			->orWhere('phone', 'LIKE', '%'.$search.'%');
+		}
+
+        $contacts = $contacts->orderBy('id', $order)->paginate(10);
 
         return new ContactsResource($contacts);
     }
