@@ -33,13 +33,13 @@ class BillsController extends Controller
             ];
         }
 
-        if ($request->input('user_id') AND $request->input('user_id') != null AND $request->input('user_id')!='') {
+        if ($request->input('home_owner_id') AND $request->input('home_owner_id') != null AND $request->input('home_owner_id')!='') {
             $where[] = [
-                'user_id', '=', $request->input('user_id')
+                'user_id', '=', $request->input('home_owner_id')
             ];
         }
 
-        $order = 'asc';
+        $order = 'desc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -51,7 +51,18 @@ class BillsController extends Controller
 			$page = $request->input('page');
 		}
 
-        $bills = Bill::where($where)->orderBy('id', $order)->paginate(50);
+        $bills = Bill::where($where);
+
+		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
+
+			$search = $request->input('search');
+	
+			$bills = $bills->where('deprecated', 0)->where('name', 'LIKE', '%'.$search.'%')
+			->orWhere('price', 'LIKE', '%'.$search.'%')
+            ->orWhere('due', 'LIKE', '%'.$search.'%');
+		}
+
+        $bills = $bills->orderBy('id', $order)->paginate(10);
 
         return new BillsResource($bills);
     }
@@ -107,6 +118,8 @@ class BillsController extends Controller
 
             $bill = new Bill($_input);
             $bill->code = $bill->generate_code();
+            $bill->status = 'Unpaid';
+
             $bill->user()->associate($user);
             $bill->admin()->associate($admin);
 
@@ -201,6 +214,16 @@ class BillsController extends Controller
             $bill = Bill::where($where)->first();
 
             if ($bill) {
+                if (isset($_input['user_id'])) {
+                    $user_where = [
+                        ['deprecated', '=', 0],
+                        ['id', '=', $_input['user_id']]
+                    ];
+                    $user = User::where($user_where)->first();
+
+                    $bill->user()->associate($user);
+                }
+
                 $bill->fill($_input);
                 $bill->save();
 

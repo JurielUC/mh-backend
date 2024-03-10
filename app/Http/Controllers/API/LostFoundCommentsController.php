@@ -34,6 +34,12 @@ class LostFoundCommentsController extends Controller
             ];
         }
 
+        if ($request->input('item_id') AND $request->input('item_id') != null AND $request->input('item_id')!='') {
+            $where[] = [
+                'lost_found_id', '=', $request->input('item_id')
+            ];
+        }
+
         $order = 'asc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
@@ -240,19 +246,16 @@ class LostFoundCommentsController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $lost_found_comment = LostFound::where($where)->first();
+        $lost_found_comment = LostFoundComment::where($where)->first();
 
         if ($lost_found_comment) {
             $lost_found_comment->deprecated = 1;
             $lost_found_comment->save();
 
-            $lost_found_comment_resource = new LostFoundComment($lost_found_comment);
-
             $data = [
                 'status' => 'Success',
                 'data' => [
                     'id' => $lost_found_comment->id,
-                    'lost_found_comment' => $lost_found_comment_resource
                 ]
 			];
         } else {

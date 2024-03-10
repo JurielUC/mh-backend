@@ -28,6 +28,11 @@ class BillResource extends JsonResource
             'date' => (string)$this->date,
             'due' => (string)$this->due,
 
+            'admin' => $this->admin ?? '',
+            'user' => $this->user ?? '',
+
+            'user_id' => $this->user->id ?? '',
+
             'created_at' => (string)$this->created_at
         ];
     }

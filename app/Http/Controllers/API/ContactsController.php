@@ -266,4 +266,51 @@ class ContactsController extends Controller
 
         return response()->json($data);
     }
+
+    public function file_upload(Request $request)
+	{
+		$rules = [
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg',
+        ];
+
+        $_input = $request->all();
+
+        $validator = Validator::make($_input, $rules);
+
+        if ($validator->fails()) {
+			$errors = $validator->errors()->toArray();
+
+			$data = [
+				'status' => 'Fail',
+				'errors' => $errors
+			];
+        } else {
+			$file = $request->file('image');
+			$directory = 'contact';
+			$extension = strtolower($file->getClientOriginalExtension());
+			$filename = 'CT-' . rand(1000, 9999) . '-' . time() . '.png';
+
+			$response = $file->storeAs($directory, $filename, 'public');
+            
+			if ($response) {
+				$data = [
+					'status' => 'Success',
+					'data' => [
+						'image' => $filename,
+					]
+				];
+			} else {
+				$errors = [
+					'Error uploading the image!'
+				];
+
+				$data = [
+					'status' => 'Fail',
+					'errors' => $errors
+				];				
+			}
+        }
+		
+		return response()->json($data);
+	}
 }

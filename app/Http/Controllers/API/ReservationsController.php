@@ -10,6 +10,7 @@ use DB;
 
 use App\Models\User;
 use App\Models\Reservation;
+use App\Models\Facility;
 
 use App\Http\Resources\ReservationResource;
 use App\Http\Resources\ReservationsResource;
@@ -30,6 +31,12 @@ class ReservationsController extends Controller
         if ($request->input('status') AND $request->input('status') != null AND $request->input('status')!='') {
             $where[] = [
                 'status', '=', $request->input('status')
+            ];
+        }
+
+        if ($request->input('home_owner_id') AND $request->input('home_owner_id') != null AND $request->input('home_owner_id')!='') {
+            $where[] = [
+                'user_id', '=', $request->input('home_owner_id')
             ];
         }
 
@@ -100,7 +107,6 @@ class ReservationsController extends Controller
 
             $reservation = new Reservation($_input);
             $reservation->code = $reservation->generate_code();
-            $reservation->facility = $facility->name;
 
             $reservation->user()->associate($user);
             $reservation->facility()->associate($facility);
@@ -205,7 +211,6 @@ class ReservationsController extends Controller
                     ];
                     $facility = Facility::where($facility_where)->first();
 
-                    $reservation->facility = $facility->name;
                     $reservation->facility()->associate($facility);
                 }
 

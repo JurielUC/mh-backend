@@ -16,12 +16,12 @@ class CreateReservationsTable extends Migration
         Schema::create('reservations', function (Blueprint $table) {
             $table->id();
             $table->integer('user_id')->unsigned()->nullable()->index();
+            $table->integer('facility_id')->unsigned()->nullable()->index();
 
             $table->string('status', 30)->nullable();
             $table->string('type', 30,)->nullable();
             $table->string('code', 30)->nullable();
 
-            $table->string('facility')->nullable();
             $table->longText('description')->nullable();
             $table->string('start_time')->nullable();
             $table->string('end_time')->nullable();

@@ -67,7 +67,7 @@ class UsersController extends Controller
 			->orWhere('phone', 'LIKE', '%'.$search.'%');
 		}
 
-        $users = $users->orderBy('id', $order)->paginate(10);
+        $users = $users->orderBy('id', $order)->paginate(12);
 
         return new UsersResource($users);
     }
@@ -338,4 +338,21 @@ class UsersController extends Controller
 		
 		return response()->json($data);
 	}
+
+    public function users(Request $request)
+    {
+        $where = [
+            ['deprecated', '=', 0]
+        ];
+
+        if ($request->input('role') AND $request->input('role') != null AND $request->input('role')!='') {
+            $where[] = [
+                'role', '=', $request->input('role')
+            ];
+        }
+
+        $users = User::where($where)->orderBy('id', 'asc')->get();
+
+        return new UsersResource($users);
+    }
 }

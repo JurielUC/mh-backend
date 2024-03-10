@@ -21,7 +21,7 @@ class ReservationResource extends JsonResource
             'type' => (string)$this->type,
             'code' => (string)$this->code,
 
-            'facility' => (string)$this->facility,
+            'facility' => $this->facility,
             'description' => (string)$this->description,
 
             'start_time' => (string)$this->start_time,

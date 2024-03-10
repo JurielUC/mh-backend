@@ -258,13 +258,10 @@ class LostsFoundsController extends Controller
             $lost_found->deprecated = 1;
             $lost_found->save();
 
-            $lost_found_resource = new TaskResource($lost_found);
-
             $data = [
                 'status' => 'Success',
                 'data' => [
                     'id' => $lost_found->id,
-                    'lost_found' => $lost_found_resource
                 ]
 			];
         } else {
@@ -299,7 +296,7 @@ class LostsFoundsController extends Controller
 				'errors' => $errors
 			];
         } else {
-			$file = $request->file('image_url');
+			$file = $request->file('image');
 			$directory = 'lost';
 			$extension = strtolower($file->getClientOriginalExtension());
 			$filename = 'LF-' . rand(1000, 9999) . '-' . time() . '.png';
@@ -310,7 +307,7 @@ class LostsFoundsController extends Controller
 				$data = [
 					'status' => 'Success',
 					'data' => [
-						'image_url' => $filename,
+						'image' => $filename,
 					]
 				];
 			} else {

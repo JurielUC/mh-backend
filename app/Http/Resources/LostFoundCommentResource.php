@@ -25,6 +25,8 @@ class LostFoundCommentResource extends JsonResource
 
             'comment' => (string)$this->comment,
 
+            'user' => $this->user ?? '',
+
             'created_at' => (string)$this->created_at
         ];
     }
