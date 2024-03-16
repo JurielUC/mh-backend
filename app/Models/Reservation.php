@@ -14,7 +14,6 @@ class Reservation extends Model
         'type',
         'code',
 
-        'facility',
         'description',
         'start_time',
         'end_time',

@@ -52,7 +52,20 @@ class ReservationsController extends Controller
 			$page = $request->input('page');
 		}
 
-        $reservations = Reservation::where($where)->orderBy('id', $order)->paginate(50);
+        $reservations = Reservation::where($where);
+
+		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
+
+			$search = $request->input('search');
+	
+			$reservations = $reservations->where('status', 'LIKE', '%'.$search.'%')
+            ->orWhere('description', 'LIKE', '%'.$search.'%')
+			->orWhere('end_time', 'LIKE', '%'.$search.'%') 
+			->orWhere('start_time', 'LIKE', '%'.$search.'%')
+            ->orWhere('date', 'LIKE', '%'.$search.'%');
+		}
+
+        $reservations = $reservations->orderBy('id', $order)->paginate(10);
 
         return new ReservationsResource($reservations);
     }
@@ -107,6 +120,7 @@ class ReservationsController extends Controller
 
             $reservation = new Reservation($_input);
             $reservation->code = $reservation->generate_code();
+            $reservation->status = 'Pending';
 
             $reservation->user()->associate($user);
             $reservation->facility()->associate($facility);
@@ -212,6 +226,16 @@ class ReservationsController extends Controller
                     $facility = Facility::where($facility_where)->first();
 
                     $reservation->facility()->associate($facility);
+                }
+
+                if (isset($_input['home_owner_id'])) {
+                    $user_where = [
+                        ['deprecated', '=', 0],
+                        ['id', '=', $_input['home_owner_id']]
+                    ];
+                    $user = User::where($user_where)->first();
+
+                    $reservation->user()->associate($user);
                 }
 
                 $reservation->save();
