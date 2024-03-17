@@ -14,6 +14,10 @@ use App\Models\Bill;
 use App\Http\Resources\BillResource;
 use App\Http\Resources\BillsResource;
 
+use App\Notifications\UserBillNotification;
+use App\Notifications\UserBillUpdateNotification;
+use App\Notifications\UserBillApologyNotification;
+
 class BillsController extends Controller
 {
     /**
@@ -118,6 +122,7 @@ class BillsController extends Controller
 
             $bill = new Bill($_input);
             $bill->code = $bill->generate_code();
+            $bill->bill_no = $bill->gen_bill_no();
             $bill->status = 'Unpaid';
 
             $bill->user()->associate($user);
@@ -128,6 +133,15 @@ class BillsController extends Controller
             DB::commit();
 
             $bill_resource = new BillResource($bill);
+
+            $_data = [
+                'user' => [
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name
+                ],
+                'bill' => $bill
+            ];
+            $user->notify(new UserBillNotification($_data));
 
             $data = [
                 'status' => 'Success',
@@ -214,6 +228,12 @@ class BillsController extends Controller
             $bill = Bill::where($where)->first();
 
             if ($bill) {
+                $current_user_where = [
+                    ['deprecated', '=', 0],
+                    ['id', '=', $bill->user_id]
+                ];
+                $current_user = User::where($current_user_where)->first();
+
                 if (isset($_input['user_id'])) {
                     $user_where = [
                         ['deprecated', '=', 0],
@@ -230,6 +250,46 @@ class BillsController extends Controller
                 DB::commit();
 
                 $bill_resource = new BillResource($bill);
+
+                if (isset($_input['user_id'])) {
+                    if ($_input['user_id'] != $current_user->id) {
+                        $_data = [
+                            'user' => [
+                                'first_name' => $user->first_name,
+                                'last_name' => $user->last_name
+                            ],
+                            'bill' => $bill
+                        ];
+                        $user->notify(new UserBillNotification($_data));
+
+                        $_ap_data = [
+                            'user' => [
+                                'first_name' => $current_user->first_name,
+                                'last_name' => $current_user->last_name
+                            ],
+                            'bill' => $bill
+                        ];
+                        $current_user->notify(new UserBillApologyNotification($_ap_data));
+                    } else {
+                        $_data = [
+                            'user' => [
+                                'first_name' => $current_user->first_name,
+                                'last_name' => $current_user->last_name
+                            ],
+                            'bill' => $bill
+                        ];
+                        $current_user->notify(new UserBillUpdateNotification($_data));
+                    }
+                } else {
+                    $_data = [
+                        'user' => [
+                            'first_name' => $current_user->first_name,
+                            'last_name' => $current_user->last_name
+                        ],
+                        'bill' => $bill
+                    ];
+                    $current_user->notify(new UserBillUpdateNotification($_data));
+                }
 
                 $data = [
                     'status' => 'Success',

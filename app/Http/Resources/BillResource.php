@@ -21,11 +21,15 @@ class BillResource extends JsonResource
             'type' => (string)$this->type,
             'code' => (string)$this->code,
 
+            'bill' => (string)$this->bill,
+
             'name' => (string)$this->name,
             'description' => (string)$this->description,
 
             'price' => (string)$this->price,
             'date' => (string)$this->date,
+            'from_date' => (string)$this->from_date,
+            'to_date' => (string)$this->to_date,
             'due' => (string)$this->due,
 
             'admin' => $this->admin ?? '',

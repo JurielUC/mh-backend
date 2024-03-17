@@ -15,6 +15,9 @@ use App\Models\Facility;
 use App\Http\Resources\ReservationResource;
 use App\Http\Resources\ReservationsResource;
 
+use App\Notifications\UserFacilityReservationNotification;
+use App\Notifications\UserReservationApprovalNotification;
+
 class ReservationsController extends Controller
 {
     /**
@@ -131,6 +134,33 @@ class ReservationsController extends Controller
 
             $reservation_resource = new ReservationResource($reservation);
 
+            $admin_where = [
+                ['deprecated', '=', 0],
+                ['role', '=', 'Admin']
+            ];
+            $admins = User::where($admin_where)->get();
+
+            if ($admins) {
+                foreach ($admins AS $admin) {
+                    $_data = [
+                        'user' => [
+                            'first_name' => $user->first_name,
+                            'last_name' => $user->last_name
+                        ],
+                        'admin' => [
+                            'first_name' => $admin->first_name,
+                            'last_name' => $admin->last_name
+                        ],
+                        'reservation' => $reservation,
+                        'facility' => [
+                            'name' => $facility->name
+                        ]
+                    ];
+
+                    $admin->notify(new UserFacilityReservationNotification($_data));
+                }
+            }
+
             $data = [
                 'status' => 'Success',
                 'data' => [
@@ -243,6 +273,23 @@ class ReservationsController extends Controller
                 DB::commit();
 
                 $reservation_resource = new ReservationResource($reservation);
+
+                if ($_input['status'] === 'Approved') {
+                    $_user_where = [
+                        ['deprecated', '=', 0],
+                        ['id', '=', $reservation->user_id]
+                    ];
+                    $_user = User::where($_user_where)->first();
+
+                    if ($_user) {
+                        $_data = [
+                            'reservation' => $reservation,
+                            'user' => $_user,
+                            'facility' => $facility
+                        ];
+                        $_user->notify(new UserReservationApprovalNotification($_data));
+                    }
+                }
 
                 $data = [
                     'status' => 'Success',

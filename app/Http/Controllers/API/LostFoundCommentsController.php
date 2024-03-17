@@ -15,6 +15,9 @@ use App\Models\LostFound;
 use App\Http\Resources\LostFoundCommentResource;
 use App\Http\Resources\LostFoundCommentsResource;
 
+use App\Notifications\AdminLostFoundCommentNotification;;
+use App\Notifications\AdminLostFoundCommentResponseNotification;
+
 class LostFoundCommentsController extends Controller
 {
     /**
@@ -107,6 +110,7 @@ class LostFoundCommentsController extends Controller
 
             $lost_found_comment = new LostFoundComment($_input);
             $lost_found_comment->code = $lost_found_comment->generate_code();
+            $lost_found_comment->status = 'Pending';
 
             $lost_found_comment->user()->associate($user);
             $lost_found_comment->lost_found()->associate($lost_found);
@@ -116,6 +120,30 @@ class LostFoundCommentsController extends Controller
             DB::commit();
 
             $lost_found_comment_resource = new LostFoundCommentResource($lost_found_comment);
+
+            $admin_where = [
+                ['deprecated', '=', 0],
+                ['role', '=', 'Admin']
+            ];
+            $admins = User::where($admin_where)->get();
+
+            if ($admins) {
+                foreach ($admins AS $admin) {
+                    $_data = [
+                        'lost_found' => $lost_found,
+                        'user' => [
+                            'first_name' => $user->first_name,
+                            'last_name' => $user->last_name,
+                        ],
+                        'admin' => [
+                            'first_name' => $admin->first_name
+                        ],
+                        'comment' => $lost_found_comment
+                    ];
+
+                    $admin->notify(new AdminLostFoundCommentNotification($_data));
+                }
+            }
 
             $data = [
                 'status' => 'Success',
@@ -261,6 +289,42 @@ class LostFoundCommentsController extends Controller
         } else {
             $errors = [
                 'Lost and found comment does not exist!'
+            ];
+
+            $data = [
+                'status' => 'Fail',
+                'errors' => $errors
+            ];
+        }
+
+        return response()->json($data);
+    }
+
+    public function comment_response($id)
+    {
+        $where = [
+            ['deprecated', '=', 0],
+            ['id', '=', $id]
+        ];
+        $comment = LostFoundComment::where($where)->first();
+
+        if ($comment) {
+            $comment->status = 'Responded';
+            $comment->save();
+
+            $_data = [
+                'user' => $comment->user,
+                'lost_found' => $comment->lost_found
+            ];
+            $comment->user->notify(new AdminLostFoundCommentResponseNotification($_data));
+
+            $data = [
+                'status' => 'Success',
+                'data' => $comment
+            ];
+        } else {
+            $errors = [
+                'Comment does not exist!'
             ];
 
             $data = [
