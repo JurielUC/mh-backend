@@ -21,16 +21,16 @@ class NotificationsController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request)
-    {
+	public function index(Request $request)
+	{
 		$where = [];
-
+	
 		if ($request->input('user_id') AND $request->input('user_id') != null AND $request->input('user_id') != '') {
 			$user = User::where('id', $request->input('user_id'))->first();
 			
 			if ($user) {
-				$notifications = [];
-				foreach ($user->notifications AS $notification) {
+				$notifications = collect(); // Initialize an empty collection
+				foreach ($user->notifications as $notification) {
 					$data = $notification->data;
 					
 					$unreadonly = 0;
@@ -40,39 +40,24 @@ class NotificationsController extends Controller
 						}
 					}
 					
-					if ($unreadonly == 0) {
-						$notifications[] = [
+					if ($unreadonly == 0 || ($unreadonly == 1 && $notification->read_at == '')) {
+						$notifications->push([
 							'id' => $notification->id,
 							'user_id' => $notification->notifiable_id,
-							
 							'url' => $data['url'],
-							
 							'subject' => $data['subject'],
 							'message' => $data['message'],
-							
 							'read_at' => $notification->read_at,
-							'created_at' => $notification->created_at
-						];
-					} else {
-						if ($notification->read_at == '') {
-							$notifications[] = [
-								'id' => $notification->id,
-								'user_id' => $notification->notifiable_id,
-								
-								'url' => $data['url'],
-								
-								'subject' => $data['subject'],
-								'message' => $data['message'],
-								
-								'read_at' => $notification->read_at,
-								'created_at' => $notification->created_at
-							];
-						}
+							'created_at' => $notification->created_at,
+						]);
 					}
 				}
 				
+				// Now you can sort the collection by created_at
+				$sorted_notifications = $notifications->sortByDesc('created_at')->values()->all();
+				
 				$data = [
-					'data' => $notifications
+					'data' => $sorted_notifications,
 				];
 			} else {
 				$data = [
@@ -86,7 +71,7 @@ class NotificationsController extends Controller
 		}
 		
 		return response()->json($data);
-    }
+	}	
 
 	public function record_count(Request $request) // ADMIN //
 	{

@@ -51,7 +51,6 @@ class UserFacilityReservationNotification extends Notification
 
         $url = 'https://mh-subdivision.web.app/admin/reservations';
 
-        date_default_timezone_set('Asia/Manila');
         $from = date("g:i A", strtotime($reservation['start_time']));
         $to = date("g:i A", strtotime($reservation['end_time']));
         $date = date("F j, Y", strtotime($reservation['date']));

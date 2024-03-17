@@ -51,8 +51,6 @@ class AdminLostFoundCommentNotification extends Notification
 
         $url = 'https://mh-subdivision.web.app/user/lost-founds';
 
-        // $from = date("g:i A", strtotime($reservation['from']));
-        date_default_timezone_set('Asia/Manila');
         $time = date("g:i A", strtotime($comment['created_at'] . " + 8 hours"));
         $issued = date("F j, Y", strtotime($comment['created_at']));
 

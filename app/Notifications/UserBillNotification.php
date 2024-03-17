@@ -51,7 +51,6 @@ class UserBillNotification extends Notification
 
         // $from = date("g:i A", strtotime($reservation['from']));
         // $to = date("g:i A", strtotime($reservation['to']));
-        date_default_timezone_set('Asia/Manila');
         $from_date = date("F j, Y", strtotime($bill['from_date']));
         $to_date = date("F j, Y", strtotime($bill['to_date']));
         $due = date("F j, Y", strtotime($bill['due']));
@@ -70,6 +69,7 @@ class UserBillNotification extends Notification
             ->line(new HtmlString("<strong>Total Amount Due:</strong> PHP {$bill['price']}"))
             ->line(new HtmlString("<strong>Due Date:</strong> {$due}"))
             ->line(new HtmlString("<strong>Date Issued:</strong> {$issued}"))
+            ->line(new HtmlString("<strong>Status:</strong> {$bill['status']}"))
             ->line(new HtmlString(''))
             ->line(new HtmlString("<strong>Please note that payment is accepted onsite at our office.</strong>"))
             ->line(new HtmlString("To ensure your convenience and to help expedite the process, please bring your invoice number when making the payment. Here are the details for making your payment in person:"))
