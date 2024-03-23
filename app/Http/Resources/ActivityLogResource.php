@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class HouseTypeResource extends JsonResource
+class ActivityLogResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -21,8 +21,10 @@ class HouseTypeResource extends JsonResource
             'type' => (string)$this->type,
             'code' => (string)$this->code,
 
-            'name' => (string)$this->name,
+            'action' => (string)$this->action,
             'description' => (string)$this->description,
+            
+            'user' => $this->user ?? '',
 
             'created_at' => (string)$this->created_at
         ];

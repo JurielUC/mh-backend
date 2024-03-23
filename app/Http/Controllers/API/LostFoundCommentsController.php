@@ -11,6 +11,7 @@ use DB;
 use App\Models\User;
 use App\Models\LostFoundComment;
 use App\Models\LostFound;
+use App\Models\ActivityLog;
 
 use App\Http\Resources\LostFoundCommentResource;
 use App\Http\Resources\LostFoundCommentsResource;
@@ -116,6 +117,18 @@ class LostFoundCommentsController extends Controller
             $lost_found_comment->lost_found()->associate($lost_found);
 
             $lost_found_comment->save();
+
+            if ($user) {
+                $activity = new ActivityLog();
+                $activity->status = 'Active';
+                $activity->code = $activity->generate_code();
+
+                $activity->action = 'Lost Item Comment';
+                $activity->description = "{$user->first_name} {$user->last_name} commented on the lost item post.";
+
+                $activity->user()->associate($user);
+                $activity->save();
+            }
 
             DB::commit();
 

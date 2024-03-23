@@ -39,3 +39,4 @@ Route::resource('lost/found', 'App\Http\Controllers\API\LostsFoundsController');
 Route::resource('comment', 'App\Http\Controllers\API\LostFoundCommentsController');
 Route::resource('reservation', 'App\Http\Controllers\API\ReservationsController');
 Route::resource('user', 'App\Http\Controllers\API\UsersController');
+Route::resource('activity-log', 'App\Http\Controllers\API\ActivityLogsController');

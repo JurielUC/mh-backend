@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class HouseType extends Model
+class ActivityLog extends Model
 {
     use HasFactory;
 
@@ -14,7 +14,7 @@ class HouseType extends Model
         'type',
         'code',
 
-        'name',
+        'action',
         'description',
 
         'deprecated',
@@ -27,8 +27,8 @@ class HouseType extends Model
 		return $code;
 	}
 
-    public function users()
+    public function user()
     {
-        return $this->hasMany('App\Models\User');
+        return $this->belongsTo('App\Models\User', 'user_id');
     }
 }

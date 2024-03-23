@@ -11,6 +11,7 @@ use DB;
 use App\Models\User;
 use App\Models\Reservation;
 use App\Models\Facility;
+use App\Models\ActivityLog;
 
 use App\Http\Resources\ReservationResource;
 use App\Http\Resources\ReservationsResource;
@@ -129,6 +130,18 @@ class ReservationsController extends Controller
             $reservation->facility()->associate($facility);
 
             $reservation->save();
+
+            if ($user) {
+                $activity = new ActivityLog();
+                $activity->status = 'Active';
+                $activity->code = $activity->generate_code();
+
+                $activity->action = 'New Reservation';
+                $activity->description = "{$user->first_name} {$user->last_name} sent a reservation request.";
+
+                $activity->user()->associate($user);
+                $activity->save();
+            }
 
             DB::commit();
 

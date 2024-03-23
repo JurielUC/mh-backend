@@ -13,6 +13,7 @@ use DB;
 use Validator;
 
 use App\Models\User;
+use App\Models\ActivityLog;
 
 use App\Http\Resources\UsersResource;
 use App\Http\Resources\UserResource;
@@ -63,6 +64,18 @@ class AuthController extends Controller
 							$user->remember_token = $token;
 							$user->save();
 						}
+
+						if ($user) {
+							$activity = new ActivityLog();
+							$activity->status = 'Active';
+							$activity->code = $activity->generate_code();
+		
+							$activity->action = 'User Logged-in';
+							$activity->description = "{$user->first_name} {$user->last_name} logged in to the system.";
+		
+							$activity->user()->associate($user);
+							$activity->save();
+						}
 						
 						$user_resource = new UserResource($user);
 
@@ -81,6 +94,18 @@ class AuthController extends Controller
 
 					$user->remember_token = $token;
 					$user->save();
+
+					if ($user) {
+						$activity = new ActivityLog();
+						$activity->status = 'Active';
+						$activity->code = $activity->generate_code();
+	
+						$activity->action = 'User Logged-in';
+						$activity->description = "{$user->first_name} {$user->last_name} logged in to the system.";
+	
+						$activity->user()->associate($user);
+						$activity->save();
+					}
 					
 					$user_resource = new UserResource($user);
 
@@ -156,6 +181,18 @@ class AuthController extends Controller
 				$user->save();
 
 				$user_resource = new UserResource($user);
+
+				if ($user) {
+					$activity = new ActivityLog();
+					$activity->status = 'Active';
+					$activity->code = $activity->generate_code();
+
+					$activity->action = 'New Email Registration';
+					$activity->description = "{$user->email} has successfully registered.";
+
+					$activity->user()->associate($user);
+					$activity->save();
+				}
 
                 $data = [
                     'status' => 'Success',

@@ -10,6 +10,7 @@ use DB;
 
 use App\Models\User;
 use App\Models\HouseType;
+use App\Models\ActivityLog;
 
 use App\Http\Resources\UserResource;
 use App\Http\Resources\UsersResource;
@@ -222,6 +223,18 @@ class UsersController extends Controller
                 }
 
                 $user->save();
+
+                if ($user) {
+					$activity = new ActivityLog();
+					$activity->status = 'Active';
+					$activity->code = $activity->generate_code();
+
+					$activity->action = 'Account Information Updated';
+					$activity->description = "{$user->first_name} {$user->last_name} updated their account information.";
+
+					$activity->user()->associate($user);
+					$activity->save();
+				}
 
                 DB::commit();
 
