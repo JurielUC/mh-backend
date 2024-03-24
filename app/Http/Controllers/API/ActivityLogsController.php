@@ -194,13 +194,13 @@ class ActivityLogsController extends Controller
 
                 DB::commit();
 
-                $activity_resource = new ActivityLogResource($bill);
+                $activity_resource = new ActivityLogResource($activity);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
                         'id' => $activity->id,
-                        'bill' => $activity_resource
+                        'activity' => $activity_resource
                     ]
                 ];
             } else {

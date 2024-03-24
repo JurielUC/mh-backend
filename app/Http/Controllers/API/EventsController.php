@@ -9,17 +9,15 @@ use Validator;
 use DB;
 
 use App\Models\User;
-use App\Models\Reservation;
+use App\Models\Event;
 use App\Models\Facility;
-use App\Models\ActivityLog;
 
-use App\Http\Resources\ReservationResource;
-use App\Http\Resources\ReservationsResource;
+use App\Http\Resources\EventResource;
+use App\Http\Resources\EventsResource;
 
-use App\Notifications\UserFacilityReservationNotification;
-use App\Notifications\UserReservationApprovalNotification;
+use App\Notifications\AdminPostNewEventNotification;
 
-class ReservationsController extends Controller
+class EventsController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -38,13 +36,7 @@ class ReservationsController extends Controller
             ];
         }
 
-        if ($request->input('home_owner_id') AND $request->input('home_owner_id') != null AND $request->input('home_owner_id')!='') {
-            $where[] = [
-                'user_id', '=', $request->input('home_owner_id')
-            ];
-        }
-
-        $order = 'asc';
+        $order = 'desc';
         if ($request->input('order') AND $request->input('order') != null AND $request->input('order') != '') {
             if ($request->input('order')== 'asc' OR $request->input('order')=='desc') {
                 $order = $request->input('order');
@@ -56,26 +48,24 @@ class ReservationsController extends Controller
 			$page = $request->input('page');
 		}
 
-        $reservations = Reservation::where($where);
+        $events = Event::where($where);
 
 		if ($request->input('search') AND $request->input('search') != null AND $request->input('search') != '') {
 
 			$search = $request->input('search');
 	
-            $reservations = $reservations->where('deprecated', 0)
-            ->where(function ($query) use ($search) {
-                $query->where('status', 'LIKE', '%' . $search . '%')
-                      ->orWhere('description', 'LIKE', '%' . $search . '%')
-                      ->orWhere('end_time', 'LIKE', '%' . $search . '%')
-                      ->orWhere('start_time', 'LIKE', '%' . $search . '%')
-                      ->orWhere('date', 'LIKE', '%' . $search . '%');
-            });
-        
+			$events = $events->where('deprecated', 0)
+                ->where(function($query) use ($search) {
+                    $query->where('title', 'LIKE', '%' . $search . '%')
+                          ->orWhere('date', 'LIKE', '%' . $search . '%')
+                          ->orWhere('description', 'LIKE', '%' . $search . '%');
+                });
+
 		}
 
-        $reservations = $reservations->orderBy('id', $order)->paginate(10);
+        $events = $events->orderBy('id', $order)->paginate(10);
 
-        return new ReservationsResource($reservations);
+        return new EventsResource($events);
     }
 
     /**
@@ -97,7 +87,7 @@ class ReservationsController extends Controller
     public function store(Request $request)
     {
         $rules = [
-            'user_id' => 'required'
+            'user_id' => 'required',
         ];
 
         $_input = $request->input();
@@ -126,63 +116,47 @@ class ReservationsController extends Controller
             ];
             $facility = Facility::where($facility_where)->first();
 
-            $reservation = new Reservation($_input);
-            $reservation->code = $reservation->generate_code();
-            $reservation->status = 'Pending';
+            $event = new Event($_input);
+            $event->code = $event->generate_code();
+            $event->status = 'Active';
 
-            $reservation->user()->associate($user);
-            $reservation->facility()->associate($facility);
+            $event->facility()->associate($facility);
+            $event->user()->associate($user);
 
-            $reservation->save();
-
-            if ($user) {
-                $activity = new ActivityLog();
-                $activity->status = 'Active';
-                $activity->code = $activity->generate_code();
-
-                $activity->action = 'New Reservation';
-                $activity->description = "{$user->first_name} {$user->last_name} sent a reservation request.";
-
-                $activity->user()->associate($user);
-                $activity->save();
-            }
+            $event->save();
 
             DB::commit();
 
-            $reservation_resource = new ReservationResource($reservation);
+            $event_resource = new EventResource($event);
 
-            $admin_where = [
+            $users_where = [
                 ['deprecated', '=', 0],
-                ['role', '=', 'Admin']
+                ['role', '=', 'User']
             ];
-            $admins = User::where($admin_where)->get();
+            $users = User::where($users_where)->get();
 
-            if ($admins) {
-                foreach ($admins AS $admin) {
+            if ($users) {
+                foreach ($users AS $user) {
                     $_data = [
                         'user' => [
                             'first_name' => $user->first_name,
                             'last_name' => $user->last_name
                         ],
-                        'admin' => [
-                            'first_name' => $admin->first_name,
-                            'last_name' => $admin->last_name
-                        ],
-                        'reservation' => $reservation,
+                        'event' => $event,
                         'facility' => [
                             'name' => $facility->name
                         ]
                     ];
 
-                    $admin->notify(new UserFacilityReservationNotification($_data));
+                    $user->notify(new AdminPostNewEventNotification($_data));
                 }
             }
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $reservation->id,
-                    'reservation' => $reservation_resource
+                    'id' => $event->id,
+                    'event' => $event_resource
                 ]
             ];
         }
@@ -202,13 +176,13 @@ class ReservationsController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $reservation = Reservation::where($where)->first();
+        $event = Event::where($where)->first();
 
-        if ($reservation) {
-            return new ReservationResource($reservation);
+        if ($event) {
+            return new EventResource($event);
         } else {
             $errors = [
-                'Reservation does not exist!'
+                'Event does not exist!'
             ];
 
             $data = [
@@ -260,66 +234,28 @@ class ReservationsController extends Controller
                 ['deprecated', '=', 0],
                 ['id', '=', $id],
             ];
-            $reservation = Reservation::where($where)->first();
+            $event = Event::where($where)->first();
 
-            if ($reservation) {
-                $reservation->fill($_input);
-
-                if (isset($_input['facility_id'])) {
-                    $facility_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['facility_id']]
-                    ];
-                    $facility = Facility::where($facility_where)->first();
-
-                    $reservation->facility()->associate($facility);
-                }
-
-                if (isset($_input['home_owner_id'])) {
-                    $user_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $_input['home_owner_id']]
-                    ];
-                    $user = User::where($user_where)->first();
-
-                    $reservation->user()->associate($user);
-                }
-
-                $reservation->save();
+            if ($event) {
+                $event->fill($_input);
+                $event->save();
 
                 DB::commit();
 
-                $reservation_resource = new ReservationResource($reservation);
-
-                if ($_input['status'] === 'Approved') {
-                    $_user_where = [
-                        ['deprecated', '=', 0],
-                        ['id', '=', $reservation->user_id]
-                    ];
-                    $_user = User::where($_user_where)->first();
-
-                    if ($_user) {
-                        $_data = [
-                            'reservation' => $reservation,
-                            'user' => $_user,
-                            'facility' => $facility
-                        ];
-                        $_user->notify(new UserReservationApprovalNotification($_data));
-                    }
-                }
+                $event_resource = new EventResource($event);
 
                 $data = [
                     'status' => 'Success',
                     'data' => [
-                        'id' => $reservation->id,
-                        'reservation' => $reservation_resource
+                        'id' => $event->id,
+                        'event' => $event_resource
                     ]
                 ];
             } else {
                 DB::rollback();
 
                 $errors = [
-                    'Reservation does not exists'
+                    'Event does not exists'
                 ];
 
                 $data = [
@@ -344,24 +280,24 @@ class ReservationsController extends Controller
             ['deprecated', '=', 0],
             ['id', '=', $id]
         ];
-        $reservation = Reservation::where($where)->first();
+        $event = Event::where($where)->first();
 
-        if ($reservation) {
-            $reservation->deprecated = 1;
-            $reservation->save();
+        if ($event) {
+            $event->deprecated = 1;
+            $event->save();
 
-            $reservation_resource = new ReservationResource($reservation);
+            $event_resource = new EventResource($event);
 
             $data = [
                 'status' => 'Success',
                 'data' => [
-                    'id' => $reservation->id,
-                    'reservation' => $reservation_resource
+                    'id' => $event->id,
+                    'event' => $event_resource
                 ]
 			];
         } else {
             $errors = [
-                'Reservation does not exist'
+                'Event does not exist'
             ];
 
             $data = [

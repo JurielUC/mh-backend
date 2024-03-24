@@ -58,14 +58,18 @@ class UsersController extends Controller
 
 			$search = $request->input('search');
 	
-			$users = $users->where('first_name', 'LIKE', '%'.$search.'%')
-			->orWhere('last_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('middle_name', 'LIKE', '%'.$search.'%')
-            ->orWhere('gender', 'LIKE', '%'.$search.'%')
-			->orWhere('email', 'LIKE', '%'.$search.'%') 
-            ->orWhere('house_type', 'LIKE', '%'.$search.'%') 
-            ->orWhere('street', 'LIKE', '%'.$search.'%') 
-			->orWhere('phone', 'LIKE', '%'.$search.'%');
+			$users = $users->where('role', 'User')
+            ->where(function($query) use ($search) {
+                $query->where('first_name', 'LIKE', '%' . $search . '%')
+                      ->orWhere('last_name', 'LIKE', '%' . $search . '%')
+                      ->orWhere('middle_name', 'LIKE', '%' . $search . '%')
+                      ->orWhere('gender', 'LIKE', '%' . $search . '%')
+                      ->orWhere('email', 'LIKE', '%' . $search . '%')
+                      ->orWhere('house_type', 'LIKE', '%' . $search . '%')
+                      ->orWhere('street', 'LIKE', '%' . $search . '%')
+                      ->orWhere('phone', 'LIKE', '%' . $search . '%');
+            });
+
 		}
 
         $users = $users->orderBy('id', $order)->paginate(12);

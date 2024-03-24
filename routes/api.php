@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\Route;
 Route::post('/login', 'App\Http\Controllers\API\AuthController@login');
 Route::post('/register', 'App\Http\Controllers\API\AuthController@register');
 
+/** PasswordsController (Start) */
+Route::post('/password/forgot', 'App\Http\Controllers\API\PasswordsController@forgot')->name('password.forgot');
+Route::post('/password/change', 'App\Http\Controllers\API\PasswordsController@change')->name('password.change');
+/** PasswordsController (End) */
+
 /** Notifications (Start) */
 Route::get('/notification/count', 'App\Http\Controllers\API\NotificationsController@record_count')->name('notification.count');
 Route::get('/notification', 'App\Http\Controllers\API\NotificationsController@index')->name('notification.index');
@@ -40,3 +45,4 @@ Route::resource('comment', 'App\Http\Controllers\API\LostFoundCommentsController
 Route::resource('reservation', 'App\Http\Controllers\API\ReservationsController');
 Route::resource('user', 'App\Http\Controllers\API\UsersController');
 Route::resource('activity-log', 'App\Http\Controllers\API\ActivityLogsController');
+Route::resource('event', 'App\Http\Controllers\API\EventsController');
